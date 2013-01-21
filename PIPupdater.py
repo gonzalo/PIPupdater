@@ -8,8 +8,6 @@ import urllib2
 # TODO 
 # - include header (author, web...)
 # - include help and instructions
-# - create GIT repository
-# - prepare fo
 # - generate a log
 
 # CONFIG BLOCK #
@@ -19,9 +17,9 @@ time_interval = 600
 
 # email parameters
 from_name =    "PIPupdater"
-from_address = "from_address@gmail.com"
-to_name =      "User name"
-to_address  =  "to_address@gmail.com"
+from_address = "your_gmail_email"
+to_name =      "Destiny name"
+to_address  =  "to_address@domain.com"
 
 # Credentials 
 # TODO hide this stuff
@@ -29,12 +27,26 @@ username = 'your_gmail_user'
 password = 'your_gmail_pass'
 
 # web service
+# this providers work without any changes
 ip_checker_url = "http://checkip.dyndns.org/"
+#ip_checker_url = "http://my-ip-address.com/"
+#ip_checker_url = "http://ip.nefsc.noaa.gov/"
+#ip_checker_url = "http://www.ipaddrs.com/"
+#ip_checker_url = "http://www.my-ipaddress.org/"
+
+# promising but need some changes
+#ip_checker_url = "http://www.hostip.info/"
+#ip_checker_url = "http://whatismyipaddress.com/"
+#ip_checker_url = "http://findwhatismyipaddress.org/"
+#ip_checker_url = "http://www.whatsmyip.org/"
+#ip_checker_url = "http://www.ip-adress.com/"
+
 
 # regular expression for address
-# TODO improve regular expression
-address_regexp = re.compile ('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')
-
+# simple regexp - from 0.0.0.0 to 999.999.999.999
+# address_regexp = re.compile ('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')
+# improved regexp from 0.0.0.0 to 255.255.255.255
+address_regexp = re.compile('(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)')
 
 # TODO check arguments at least one action required
 def argsParser():
@@ -81,13 +93,15 @@ def sendMail_GMail(mail_text):
 
 def compose_mail(host_name, ip):
 
-	msg_template = 'Current IP address for %s is: %s' % (host_name, ip)
+	subject = 'Current IP address for %s is: %s' % (host_name, ip)
+	msg = 'Current IP address for <b>%s</b> is: <b>%s</b>' % (host_name,ip)
 
 	mail_text  = ("From: %s <%s>\r\n"% (from_name, from_address))
 	mail_text += ("To: %s <%s>\r\n"	% (to_name, to_address))
-	mail_text += ("Subject: %s\r\n" % (msg_template))
-	#TODO MSG BODY EMPTY
-	mail_text += msg_template
+	mail_text += ("Subject: %s\r\n" % (subject))
+	mail_text += ("Content-Type: text/html\r\n")
+	mail_text += ("\r\n")
+	mail_text += msg
 	return mail_text
 
 
@@ -113,7 +127,8 @@ while True:
 		
 			#Display at screen if required
 			if args.verbose:
-				print "IP address updated. Host: %s IP: %s" % (host_name, external_ip)
+				print "IP address updated. Host: %s IP: %s" % (
+					host_name, external_ip)
 
 			#Send email if required
 			if args.mail:
