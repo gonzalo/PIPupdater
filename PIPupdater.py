@@ -185,7 +185,7 @@ while True:
 		time.sleep(time_interval)
 	except KeyboardInterrupt:
 		print "Program stopped by user"
-		exit()
+		sys.exit()
 
 ## END LOOP BLOCK ##
 
