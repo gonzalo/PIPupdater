@@ -65,12 +65,14 @@ address_regexp = re.compile('(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[
 
 MODE_VERBOSE = False
 MODE_EMAIL   = False
+MODE_DEBUG   = False
 
 # FUNCTIONS
 
 def argsParser():
 	global MODE_VERBOSE
 	global MODE_EMAIL
+	global MODE_DEBUG
 
 	parser = argparse.ArgumentParser(description='Use web services to monitorize your WAN ')
 
@@ -81,11 +83,17 @@ def argsParser():
 	parser.add_argument("-m", "--mail", 
 			help="send email when IP is updated (requires smtp email account)",
 			action="store_true")
+	parser.add_argument("-d", "--debug", 
+			help="enable debug mode (enables verbose mode also)",
+			action="store_true")
 
 	args = parser.parse_args()
 	
 	if args.verbose: MODE_VERBOSE = True
 	if args.mail:    MODE_EMAIL   = True
+	if args.debug:   
+		MODE_DEBUG   = True
+		MODE_VERBOSE = True
 
 	#default mode if no other output has been selected
 	if not (args.verbose or args.mail): MODE_VERBOSE = True
@@ -94,7 +102,7 @@ def argsParser():
 
 
 def getIP():
-	#TODO improve error detection
+	#TODO improve errors detection
 	try:
 		response = urllib2.urlopen(ip_checker_url).read()
 		result = address_regexp.search(response)
@@ -115,19 +123,19 @@ def sendMail_GMail(mail_text):
 	#TODO improved connection testings
 	#TODO allow direct login or oauth2 login
 	try:
-		if MODE_VERBOSE: print "Connecting to google server"
+		if MODE_DEBUG: print "Connecting to google server"
 		server = smtplib.SMTP('smtp.gmail.com:587')
 		server.ehlo()
 		server.starttls()
 		server.ehlo()
 		#server.login(username,password)
 
-		if MODE_VERBOSE: print "Requesting access token"
+		if MODE_DEBUG: print "Requesting access token"
 		access_token = oauth2.RefreshToken(client_id, client_secret, refresh_token)['access_token']
-		if MODE_VERBOSE: print "Access token = %s" % access_token
+		if MODE_DEBUG: print "Access token = %s" % access_token
 
 		oauth2_string  = oauth2.GenerateOAuth2String(google_user, access_token)
-		if MODE_VERBOSE: print "OAuth2_string = %s" % oauth2_string
+		if MODE_DEBUG: print "OAuth2_string = %s" % oauth2_string
 
 		server.docmd('AUTH', 'XOAUTH2 ' + oauth2_string)
 		server.sendmail(from_address, to_address, mail_text)
