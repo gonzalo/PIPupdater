@@ -1,8 +1,12 @@
+#! /usr/bin/env python
+
 import argparse
+import datetime
 import os
 import re
 import smtplib
 import time
+from time import strftime
 import urllib2
 
 # TODO 
@@ -13,7 +17,7 @@ import urllib2
 # CONFIG BLOCK #
 
 # time interval between checks (seconds)
-time_interval = 600
+time_interval = 10
 
 # email parameters
 from_name =    "PIPupdater"
@@ -48,8 +52,16 @@ ip_checker_url = "http://checkip.dyndns.org/"
 # improved regexp from 0.0.0.0 to 255.255.255.255
 address_regexp = re.compile('(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)')
 
+# GLOBAL VARS
+# Default values
+
+MODE_VERBOSE = False
+
+
 # TODO check arguments at least one action required
 def argsParser():
+	global MODE_VERBOSE
+
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-v", "--verbose", 
 			help="enable verbose mode",
@@ -59,6 +71,10 @@ def argsParser():
 			action="store_true")
 
 	args = parser.parse_args()
+	
+
+	if args.verbose: MODE_VERBOSE = True
+
 	return args
 
 
@@ -81,6 +97,9 @@ def getIP():
 		return result.group()
 	else:
 		return None
+
+def getDateTime():
+	return strftime("%Y-%m-%d %H:%M:%S")
 
 def sendMail_GMail(mail_text):
 
@@ -126,7 +145,7 @@ while True:
 			last_external_ip = external_ip
 		
 			#Display at screen if required
-			if args.verbose:
+			if MODE_VERBOSE:
 				print "IP address updated. Host: %s IP: %s" % (
 					host_name, external_ip)
 
@@ -135,15 +154,16 @@ while True:
 		
 				mail_text = compose_mail(host_name, external_ip)
 
-				if args.verbose: 
+				if MODE_VERBOSE: 
 					print "Trying to send email"
 					print "Mail text =\r\n%s" % mail_text
 
 				sendMail_GMail(mail_text)
 
-				if args.verbose: print "Email sent"
+				if MODE_VERBOSE: print "Email sent"
 
 	#now rest a while
+	if MODE_VERBOSE: print "%s: Next update on %d seconds" % (getDateTime(), time_interval)
 	time.sleep(time_interval)
 
 ## END LOOP BLOCK ##
