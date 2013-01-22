@@ -44,10 +44,10 @@ password = 'your_google_password'
 #    $ python oauth2.py --generate_oauth2_token --client_id=your_client_id  --client_secret=your_client_secret
 # 3. Copy refresh_token value below
 
-google_user   = "gonzalo.cao@gmail.com"
-client_id     = "1007404137755.apps.googleusercontent.com"
-client_secret = "ZM58MYFPNLRemRGOk_843Byx"
-refresh_token = "1/9RRv7gELSVubnECvwjc4uEYj4dcYI1ggMUTPRgtDml4"
+google_user   = "your_user@gmail.com"
+client_id     = "your_client_id.apps.googleusercontent.com"
+client_secret = "your_client_secret"
+refresh_token = "your_refresh_token"
 
 # Web services to check IP
 # You can use any of this providers
