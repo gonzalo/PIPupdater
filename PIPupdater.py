@@ -22,14 +22,14 @@ time_interval = 10
 
 # email parameters
 from_name =    "PIPupdater"
-from_address = "your_gmail_email"
+from_address = "gonzalo.cao@gmail.com"
 to_name =      "Destiny name"
-to_address  =  "to_address@domain.com"
+to_address  =  "gonzalo.cao@gmail.com"
 
 # Credentials 
 # TODO hide this stuff
-username = 'your_gmail_user'
-password = 'your_gmail_pass'
+username = 'gonzalo.cao@gmail.com'
+password = 'Oreally?12'
 
 # web service
 # this providers work without any changes
@@ -85,17 +85,7 @@ def argsParser():
 
 
 def getIP():
-	#TODO improve error detection, use try...
-	# sample?
-	#try:
-	#	ipurl = "http://" + iphost + Ugate_page
-	#	urlfp = urllib.urlopen(ipurl)
-	#	ipdata = urlfp.read()
-	#	urlfp.close()
-	#except:
-	#	logline = "No address found on router at " + iphost
-	#	logger.logexit(logline)
-	#	sys.exit(-1)
+	#TODO improve error detection
 	try:
 		response = urllib2.urlopen(ip_checker_url).read()
 		result = address_regexp.search(response)
@@ -114,11 +104,17 @@ def getDateTime():
 def sendMail_GMail(mail_text):
 
 	#TODO verify if connection goes wrong
-	server = smtplib.SMTP('smtp.gmail.com:587')
-	server.starttls()
-	server.login(username,password)
-	server.sendmail(from_address, to_address, mail_text)
-	server.quit()
+	try:
+		server = smtplib.SMTP('smtp.gmail.com:587')
+		server.starttls()
+		server.login(username,password)
+		server.sendmail(from_address, to_address, mail_text)
+		server.quit()
+	except:
+		print "Unexpected error:", sys.exc_info()[0]
+		return False
+
+	return True
 
 def compose_mail(host_name, ip):
 
@@ -137,7 +133,7 @@ def compose_mail(host_name, ip):
 ## MAIN ##
 
 args = argsParser()
-last_external_ip = ""
+last_external_ip = None
 
 
 ## START LOOP BLOCK ##
@@ -172,11 +168,20 @@ while True:
 
 				if MODE_VERBOSE: 
 					print "Trying to send email"
-					print "Mail text =\r\n%s" % mail_text
+					print "========= Mail text begin ========="
+					print mail_text
+					print "========== Mail text end =========="
+					print 
 
-				sendMail_GMail(mail_text)
+				mail_sent = sendMail_GMail(mail_text)
 
-				if MODE_VERBOSE: print "Email sent"
+				if mail_sent:
+					if MODE_VERBOSE: print "Email sent"
+				else:
+					#reset last_external_ip to force email during next check
+					last_external_ip = None
+					if MODE_VERBOSE: print "ERROR: Email not sent"
+					
 
 		#do nothing if IP is updated
 		else:
