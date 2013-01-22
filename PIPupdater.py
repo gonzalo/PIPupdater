@@ -5,6 +5,7 @@ import datetime
 import os
 import re
 import smtplib
+import sys
 import time
 from time import strftime
 import urllib2
@@ -32,8 +33,8 @@ password = 'your_gmail_pass'
 
 # web service
 # this providers work without any changes
-ip_checker_url = "http://checkip.dyndns.org/"
-#ip_checker_url = "http://my-ip-address.com/"
+#ip_checker_url = "http://checkip.dyndns.org/"
+ip_checker_url = "http://my-ip-address.com/"
 #ip_checker_url = "http://ip.nefsc.noaa.gov/"
 #ip_checker_url = "http://www.ipaddrs.com/"
 #ip_checker_url = "http://www.my-ipaddress.org/"
@@ -58,8 +59,6 @@ address_regexp = re.compile('(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[
 MODE_VERBOSE = False
 MODE_EMAIL   = False
 
-
-# TODO check arguments at least one action required
 def argsParser():
 	global MODE_VERBOSE
 	global MODE_EMAIL
@@ -144,7 +143,7 @@ while True:
 	external_ip = getIP()
 
 	if external_ip==None:
-		print "Unable to retrieve external IP for %s" % host_name
+		print "%s: Unable to retrieve external IP for %s" % (getDateTime(), host_name)
 	else:
 		#Compare current IP with previous, do tasks if has been updated
 		if external_ip != last_external_ip:
@@ -152,9 +151,12 @@ while True:
 			last_external_ip = external_ip
 		
 			#Display at screen if required
-			if MODE_VERBOSE:
-				print "IP address updated. Host: %s IP: %s" % (
-					host_name, external_ip)
+			if MODE_VERBOSE: 
+				print "%s %s %s: IP updated, performing tasks. Next check on %d seconds" % (
+					getDateTime(), 
+					host_name,
+					external_ip,
+					time_interval)
 
 			#Send email if required
 			if MODE_EMAIL:
@@ -169,9 +171,21 @@ while True:
 
 				if MODE_VERBOSE: print "Email sent"
 
+		#do nothing if IP is updated
+		else:
+			if MODE_VERBOSE: 
+				print "%s %s %s: Nothing to do. Next check on %d seconds" % (
+					getDateTime(), 
+					host_name,
+					external_ip,
+					time_interval)
+
 	#now rest a while
-	if MODE_VERBOSE: print "%s: Next update on %d seconds" % (getDateTime(), time_interval)
-	time.sleep(time_interval)
+	try:
+		time.sleep(time_interval)
+	except KeyboardInterrupt:
+		print "Program stopped by user"
+		exit()
 
 ## END LOOP BLOCK ##
 
