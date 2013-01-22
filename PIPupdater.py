@@ -33,8 +33,8 @@ password = 'your_gmail_pass'
 
 # web service
 # this providers work without any changes
-#ip_checker_url = "http://checkip.dyndns.org/"
-ip_checker_url = "http://my-ip-address.com/"
+ip_checker_url = "http://checkip.dyndns.org/"
+#ip_checker_url = "http://my-ip-address.com/""
 #ip_checker_url = "http://ip.nefsc.noaa.gov/"
 #ip_checker_url = "http://www.ipaddrs.com/"
 #ip_checker_url = "http://www.my-ipaddress.org/"
@@ -96,8 +96,12 @@ def getIP():
 	#	logline = "No address found on router at " + iphost
 	#	logger.logexit(logline)
 	#	sys.exit(-1)
-	response = urllib2.urlopen(ip_checker_url).read()
-	result = address_regexp.search(response)
+	try:
+		response = urllib2.urlopen(ip_checker_url).read()
+		result = address_regexp.search(response)
+	except:
+		print "Unexpected error:", sys.exc_info()[0]
+		return None
 
 	if result:
 		return result.group()
@@ -143,7 +147,10 @@ while True:
 	external_ip = getIP()
 
 	if external_ip==None:
-		print "%s: Unable to retrieve external IP for %s" % (getDateTime(), host_name)
+		print "%s %s: Unable to retrieve external IP. Next attempt in %d seconds" % (
+			getDateTime(), 
+			host_name,
+			time_interval)
 	else:
 		#Compare current IP with previous, do tasks if has been updated
 		if external_ip != last_external_ip:
