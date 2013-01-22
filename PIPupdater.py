@@ -56,24 +56,31 @@ address_regexp = re.compile('(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[
 # Default values
 
 MODE_VERBOSE = False
+MODE_EMAIL   = False
 
 
 # TODO check arguments at least one action required
 def argsParser():
 	global MODE_VERBOSE
+	global MODE_EMAIL
 
-	parser = argparse.ArgumentParser()
+	parser = argparse.ArgumentParser(description='Use web services to monitorize your WAN ')
+
+	#setting modes
 	parser.add_argument("-v", "--verbose", 
-			help="enable verbose mode",
+			help="enable verbose mode (enabled if no other output has been selected)",
 			action="store_true")
 	parser.add_argument("-m", "--mail", 
-			help="send email",
+			help="send email when IP is updated (requires smtp email account)",
 			action="store_true")
 
 	args = parser.parse_args()
 	
-
 	if args.verbose: MODE_VERBOSE = True
+	if args.mail:    MODE_EMAIL   = True
+
+	#default mode if no other output has been selected
+	if not (args.verbose or args.mail): MODE_VERBOSE = True
 
 	return args
 
@@ -150,7 +157,7 @@ while True:
 					host_name, external_ip)
 
 			#Send email if required
-			if args.mail:
+			if MODE_EMAIL:
 		
 				mail_text = compose_mail(host_name, external_ip)
 
