@@ -10,9 +10,11 @@ import time
 from time import strftime
 import urllib2
 
+#import oauth2.py
+import oauth2
+
 # TODO 
 # - include header (author, web...)
-# - include help and instructions
 # - generate a log
 
 # CONFIG BLOCK #
@@ -26,31 +28,36 @@ from_address = "gonzalo.cao@gmail.com"
 to_name =      "Destiny name"
 to_address  =  "gonzalo.cao@gmail.com"
 
-# Credentials 
-# TODO hide this stuff
-username = 'gonzalo.cao@gmail.com'
-password = 'Oreally?12'
+# Gmail options
 
-# web service
-# this providers work without any changes
+# You have two options to use your gmail account with 
+
+# Option A) 
+# Type your user and password (insecure)
+username = 'your_google_user'
+password = 'your_google_password'
+
+# Option B) Gmail OAUTH2 parameters
+# 1. Register your application with https://code.google.com/apis/console/
+# 2. Copy client_id and client_secret values below
+# 2. Run this command in app directory and follow instructions
+#    $ python oauth2.py --generate_oauth2_token --client_id=your_client_id  --client_secret=your_client_secret
+# 3. Copy refresh_token value below
+
+google_user   = "gonzalo.cao@gmail.com"
+client_id     = "1007404137755.apps.googleusercontent.com"
+client_secret = "ZM58MYFPNLRemRGOk_843Byx"
+refresh_token = "1/9RRv7gELSVubnECvwjc4uEYj4dcYI1ggMUTPRgtDml4"
+
+# Web services to check IP
+# You can use any of this providers
 ip_checker_url = "http://checkip.dyndns.org/"
-#ip_checker_url = "http://my-ip-address.com/""
+#ip_checker_url = "http://my-ip-address.com/"
 #ip_checker_url = "http://ip.nefsc.noaa.gov/"
 #ip_checker_url = "http://www.ipaddrs.com/"
 #ip_checker_url = "http://www.my-ipaddress.org/"
 
-# promising but need some changes
-#ip_checker_url = "http://www.hostip.info/"
-#ip_checker_url = "http://whatismyipaddress.com/"
-#ip_checker_url = "http://findwhatismyipaddress.org/"
-#ip_checker_url = "http://www.whatsmyip.org/"
-#ip_checker_url = "http://www.ip-adress.com/"
-
-
 # regular expression for address
-# simple regexp - from 0.0.0.0 to 999.999.999.999
-# address_regexp = re.compile ('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')
-# improved regexp from 0.0.0.0 to 255.255.255.255
 address_regexp = re.compile('(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)')
 
 # GLOBAL VARS
@@ -58,6 +65,8 @@ address_regexp = re.compile('(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[
 
 MODE_VERBOSE = False
 MODE_EMAIL   = False
+
+# FUNCTIONS
 
 def argsParser():
 	global MODE_VERBOSE
@@ -103,11 +112,24 @@ def getDateTime():
 
 def sendMail_GMail(mail_text):
 
-	#TODO verify if connection goes wrong
+	#TODO improved connection testings
+	#TODO allow direct login or oauth2 login
 	try:
+		if MODE_VERBOSE: print "Connecting to google server"
 		server = smtplib.SMTP('smtp.gmail.com:587')
+		server.ehlo()
 		server.starttls()
-		server.login(username,password)
+		server.ehlo()
+		#server.login(username,password)
+
+		if MODE_VERBOSE: print "Requesting access token"
+		access_token = oauth2.RefreshToken(client_id, client_secret, refresh_token)['access_token']
+		if MODE_VERBOSE: print "Access token = %s" % access_token
+
+		oauth2_string  = oauth2.GenerateOAuth2String(google_user, access_token)
+		if MODE_VERBOSE: print "OAuth2_string = %s" % oauth2_string
+
+		server.docmd('AUTH', 'XOAUTH2 ' + oauth2_string)
 		server.sendmail(from_address, to_address, mail_text)
 		server.quit()
 	except:
@@ -134,7 +156,6 @@ def compose_mail(host_name, ip):
 
 args = argsParser()
 last_external_ip = None
-
 
 ## START LOOP BLOCK ##
 while True:
