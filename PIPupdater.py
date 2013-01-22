@@ -1,6 +1,7 @@
 #! /usr/bin/env python
-
+import pdb
 import argparse
+import ConfigParser
 import datetime
 import os
 import re
@@ -19,6 +20,8 @@ import oauth2
 
 # CONFIG BLOCK #
 
+config_file = "PIPupdater.conf"
+
 # time interval between checks (seconds)
 time_interval = 10
 
@@ -28,26 +31,7 @@ from_address = "gonzalo.cao@gmail.com"
 to_name =      "Destiny name"
 to_address  =  "gonzalo.cao@gmail.com"
 
-# Gmail options
 
-# You have two options to use your gmail account with 
-
-# Option A) 
-# Type your user and password (insecure)
-username = 'your_google_user'
-password = 'your_google_password'
-
-# Option B) Gmail OAUTH2 parameters
-# 1. Register your application with https://code.google.com/apis/console/
-# 2. Copy client_id and client_secret values below
-# 2. Run this command in app directory and follow instructions
-#    $ python oauth2.py --generate_oauth2_token --client_id=your_client_id  --client_secret=your_client_secret
-# 3. Copy refresh_token value below
-
-google_user   = "your_user@gmail.com"
-client_id     = "your_client_id.apps.googleusercontent.com"
-client_secret = "your_client_secret"
-refresh_token = "your_refresh_token"
 
 # Web services to check IP
 # You can use any of this providers
@@ -74,7 +58,7 @@ def argsParser():
 	global MODE_EMAIL
 	global MODE_DEBUG
 
-	parser = argparse.ArgumentParser(description='Use web services to monitorize your WAN ')
+	parser = argparse.ArgumentParser(description='Use web services to monitorize your WAN IP')
 
 	#setting modes
 	parser.add_argument("-v", "--verbose", 
@@ -94,12 +78,25 @@ def argsParser():
 	if args.debug:   
 		MODE_DEBUG   = True
 		MODE_VERBOSE = True
+		#MODE_DEBUG also enables MODE_VERBOSE
 
+	#TODO find a better way to do this
 	#default mode if no other output has been selected
 	if not (args.verbose or args.mail): MODE_VERBOSE = True
 
 	return args
 
+def readConfigFile():
+	global google_user
+	global client_id
+	global client_secret
+	global refresh_token
+
+	if MODE_VERBOSE: print "Loading config file: %s" % config_file
+	config = ConfigParser.ConfigParser()
+	config.read(config_file)
+
+	return config
 
 def getIP():
 	#TODO improve errors detection
@@ -118,7 +115,7 @@ def getIP():
 def getDateTime():
 	return strftime("%Y-%m-%d %H:%M:%S")
 
-def sendMail_GMail(mail_text):
+def sendMail_GMail(mail_text, google_config):
 
 	#TODO improved connection testings
 	#TODO allow direct login or oauth2 login
@@ -131,10 +128,17 @@ def sendMail_GMail(mail_text):
 		#server.login(username,password)
 
 		if MODE_DEBUG: print "Requesting access token"
-		access_token = oauth2.RefreshToken(client_id, client_secret, refresh_token)['access_token']
+		access_token = oauth2.RefreshToken(
+			google_config['client_id'], 
+			google_config['client_secret'], 
+			google_config['refresh_token']
+			)['access_token']
 		if MODE_DEBUG: print "Access token = %s" % access_token
 
-		oauth2_string  = oauth2.GenerateOAuth2String(google_user, access_token)
+		oauth2_string  = oauth2.GenerateOAuth2String(
+			google_config['google_user'],
+			access_token)
+
 		if MODE_DEBUG: print "OAuth2_string = %s" % oauth2_string
 
 		server.docmd('AUTH', 'XOAUTH2 ' + oauth2_string)
@@ -164,6 +168,10 @@ def compose_mail(host_name, ip):
 
 args = argsParser()
 last_external_ip = None
+
+config = readConfigFile()
+google_config = config._sections['Google config']
+
 
 ## START LOOP BLOCK ##
 while True:
@@ -202,7 +210,7 @@ while True:
 					print "========== Mail text end =========="
 					print 
 
-				mail_sent = sendMail_GMail(mail_text)
+				mail_sent = sendMail_GMail(mail_text, google_config)
 
 				if mail_sent:
 					if MODE_VERBOSE: print "Email sent"
