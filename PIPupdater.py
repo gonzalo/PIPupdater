@@ -94,7 +94,7 @@ def readConfigFile():
 	global client_secret
 	global refresh_token
 
-	if MODE_VERBOSE: print "Loading config file: %s" % config_file
+	if MODE_DEBUG: print "Loading config file: %s" % config_file
 	config = ConfigParser.ConfigParser()
 	config.read(config_file)
 
@@ -110,7 +110,7 @@ def getIP(web_service_providers):
 			result = address_regexp.search(response)
 		except IOError, e:
 			if hasattr(e, 'reason'):
-				print 'We failed to reach a server.'
+				print 'Failed to reach a server.'
 				print 'Reason: ', e.reason
 			elif hasattr(e, 'code'):
 				print 'The server couldn\'t fulfill the request.'
@@ -220,7 +220,7 @@ while True:
 		
 				mail_text = compose_mail(host_name, external_ip)
 
-				if MODE_VERBOSE: 
+				if MODE_DEBUG: 
 					print "Trying to send email"
 					print "========= Mail text begin ========="
 					print mail_text
@@ -230,11 +230,11 @@ while True:
 				mail_sent = sendMail_GMail(mail_text, google_config)
 
 				if mail_sent:
-					if MODE_VERBOSE: print "Email sent"
+					if MODE_DEBUG: print "Email sent"
 				else:
 					#reset last_external_ip to force email during next check
 					last_external_ip = None
-					if MODE_VERBOSE: print "ERROR: Email not sent"
+					if MODE_DEBUG: print "ERROR: Email not sent"
 					
 
 		#do nothing if IP is updated
