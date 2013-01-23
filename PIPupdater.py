@@ -15,6 +15,8 @@ import urllib2
 import oauth2
 
 # TODO 
+# - move all config parameters to .conf
+# - check if config read fails
 # - include header (author, web...)
 # - generate a log
 
@@ -33,7 +35,7 @@ to_address  =  "gonzalo.cao@gmail.com"
 
 
 
-# Web services to check IP
+
 # You can use any of this providers
 ip_checker_url = "http://checkip.dyndns.org/"
 #ip_checker_url = "http://my-ip-address.com/"
@@ -98,14 +100,25 @@ def readConfigFile():
 
 	return config
 
-def getIP():
-	#TODO improve errors detection
-	try:
-		response = urllib2.urlopen(ip_checker_url).read()
-		result = address_regexp.search(response)
-	except:
-		print "Unexpected error:", sys.exc_info()[0]
-		return None
+def getIP(web_service_providers):
+
+	result = None
+	for web_service_url in web_service_providers:
+		try:
+			if MODE_DEBUG: print "Trying to retrieve IP using service: %s" % web_service_url
+			response = urllib2.urlopen(web_service_url).read()
+			result = address_regexp.search(response)
+		except IOError, e:
+			if hasattr(e, 'reason'):
+				print 'We failed to reach a server.'
+				print 'Reason: ', e.reason
+			elif hasattr(e, 'code'):
+				print 'The server couldn\'t fulfill the request.'
+				print 'Error code: ', e.code
+		except:
+			print "Unexpected error:", sys.exc_info()[0]
+			return None
+		if result!=None: break
 
 	if result:
 		return result.group()
@@ -170,6 +183,8 @@ args = argsParser()
 last_external_ip = None
 
 config = readConfigFile()
+
+main_config = config._sections['Main']
 google_config = config._sections['Google config']
 
 
@@ -177,7 +192,9 @@ google_config = config._sections['Google config']
 while True:
 
 	host_name = os.uname()[1]
-	external_ip = getIP()
+
+	web_service_providers = main_config['web_service_providers'].split(',')
+	external_ip = getIP(web_service_providers)
 
 	if external_ip==None:
 		print "%s %s: Unable to retrieve external IP. Next attempt in %d seconds" % (
