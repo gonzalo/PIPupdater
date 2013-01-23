@@ -24,25 +24,6 @@ import oauth2
 
 config_file = "PIPupdater.conf"
 
-# time interval between checks (seconds)
-time_interval = 10
-
-# email parameters
-from_name =    "PIPupdater"
-from_address = "gonzalo.cao@gmail.com"
-to_name =      "Destiny name"
-to_address  =  "gonzalo.cao@gmail.com"
-
-
-
-
-# You can use any of this providers
-ip_checker_url = "http://checkip.dyndns.org/"
-#ip_checker_url = "http://my-ip-address.com/"
-#ip_checker_url = "http://ip.nefsc.noaa.gov/"
-#ip_checker_url = "http://www.ipaddrs.com/"
-#ip_checker_url = "http://www.my-ipaddress.org/"
-
 # regular expression for address
 address_regexp = re.compile('(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)')
 
@@ -163,13 +144,17 @@ def sendMail_GMail(mail_text, google_config):
 
 	return True
 
-def compose_mail(host_name, ip):
+def compose_mail(email_config, host_name, ip):
 
 	subject = 'Current IP address for %s is: %s' % (host_name, ip)
 	msg = 'Current IP address for <b>%s</b> is: <b>%s</b>' % (host_name,ip)
 
-	mail_text  = ("From: %s <%s>\r\n"% (from_name, from_address))
-	mail_text += ("To: %s <%s>\r\n"	% (to_name, to_address))
+	mail_text  = ("From: %s <%s>\r\n"% (
+			email_config['from_name'], 
+			email_config['from_address']))
+	mail_text += ("To: %s <%s>\r\n"	% (
+			email_config['to_name'], 
+			email_config['to_address']))
 	mail_text += ("Subject: %s\r\n" % (subject))
 	mail_text += ("Content-Type: text/html\r\n")
 	mail_text += ("\r\n")
@@ -184,16 +169,17 @@ last_external_ip = None
 
 config = readConfigFile()
 
-main_config = config._sections['Main']
+main_config   = config._sections['Main']
+email_config  = config._sections['Email config']
 google_config = config._sections['Google config']
 
+web_service_providers = main_config['web_service_providers'].split(',')
 
 ## START LOOP BLOCK ##
 while True:
 
 	host_name = os.uname()[1]
 
-	web_service_providers = main_config['web_service_providers'].split(',')
 	external_ip = getIP(web_service_providers)
 
 	if external_ip==None:
@@ -218,7 +204,7 @@ while True:
 			#Send email if required
 			if MODE_EMAIL:
 		
-				mail_text = compose_mail(host_name, external_ip)
+				mail_text = compose_mail(email_config, host_name, external_ip)
 
 				if MODE_DEBUG: 
 					print "Trying to send email"
