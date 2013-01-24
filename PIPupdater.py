@@ -109,34 +109,50 @@ def getIP(web_service_providers):
 def getDateTime():
 	return strftime("%Y-%m-%d %H:%M:%S")
 
-def sendMail_GMail(mail_text, google_config):
+def sendMail(mail_text, email_config):
 
-	#TODO improved connection testings
-	#TODO allow direct login or oauth2 login
+	#TODO test if config fails
+	smtp_server = email_config['smtp_server']
+	smtp_port   = int(email_config['smtp_port'])
+	use_oauth2  = bool(email_config['use_oauth2'])
+	
+	#TODO improved connection testings, manage SMTP exceptions
 	try:
-		if MODE_DEBUG: print "Connecting to google server"
-		server = smtplib.SMTP('smtp.gmail.com:587')
+		if MODE_DEBUG: print "Connecting to smtp server"
+
+		# openning connection with 
+		server = smtplib.SMTP(smtp_server, smtp_port)
 		server.ehlo()
-		server.starttls()
-		server.ehlo()
-		#server.login(username,password)
 
-		if MODE_DEBUG: print "Requesting access token"
-		access_token = oauth2.RefreshToken(
-			google_config['client_id'], 
-			google_config['client_secret'], 
-			google_config['refresh_token']
-			)['access_token']
-		if MODE_DEBUG: print "Access token = %s" % access_token
+		# connect gmail server using OAuth2 or...
+		if use_oauth2:
+			server.starttls()
+			server.ehlo()
+			if MODE_DEBUG: print "Requesting access token"
+			access_token = oauth2.RefreshToken(
+				email_config['client_id'], 
+				email_config['client_secret'], 
+				email_config['refresh_token']
+				)['access_token']
+			if MODE_DEBUG: print "Access token = %s" % access_token
+			oauth2_string  = oauth2.GenerateOAuth2String(
+				email_config['google_user'],
+				access_token)
+			if MODE_DEBUG: print "OAuth2_string = %s" % oauth2_string
+			server.docmd('AUTH', 'XOAUTH2 ' + oauth2_string)
+		# connect STMP server using standar methods					
+		else:
+			starttls_required = bool(email_config['starttls'])
+			if starttls_required: 
+				server.starttls()
+				server.ehlo()
+			server.login(email_config['username'],email_config['password'])
 
-		oauth2_string  = oauth2.GenerateOAuth2String(
-			google_config['google_user'],
-			access_token)
-
-		if MODE_DEBUG: print "OAuth2_string = %s" % oauth2_string
-
-		server.docmd('AUTH', 'XOAUTH2 ' + oauth2_string)
-		server.sendmail(from_address, to_address, mail_text)
+		# once indentified send email
+		server.sendmail(
+				email_config['from_address'], 
+				email_config['to_address'], 
+				mail_text)
 		server.quit()
 	except:
 		print "Unexpected error:", sys.exc_info()[0]
@@ -171,14 +187,13 @@ config = readConfigFile()
 
 main_config   = config._sections['Main']
 email_config  = config._sections['Email config']
-google_config = config._sections['Google config']
 
+time_interval = int(main_config['time_interval'])
 web_service_providers = main_config['web_service_providers'].split(',')
 
+host_name = os.uname()[1]
 ## START LOOP BLOCK ##
 while True:
-
-	host_name = os.uname()[1]
 
 	external_ip = getIP(web_service_providers)
 
@@ -213,7 +228,7 @@ while True:
 					print "========== Mail text end =========="
 					print 
 
-				mail_sent = sendMail_GMail(mail_text, google_config)
+				mail_sent = sendMail(mail_text, email_config)
 
 				if mail_sent:
 					if MODE_DEBUG: print "Email sent"
