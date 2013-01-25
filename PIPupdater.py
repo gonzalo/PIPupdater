@@ -22,7 +22,10 @@ import oauth2
 
 # CONFIG BLOCK #
 
-config_file = "PIPupdater.conf"
+# list of potencial config locations
+config_files = ["PIPupdater.conf",
+				os.path.expanduser("~/.PIPupdater/PIPupdater.conf"),
+				"/etc/PIPupdater/PIPupdater.conf"]
 
 # regular expression for address
 address_regexp = re.compile('(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)')
@@ -69,15 +72,14 @@ def argsParser():
 
 	return args
 
-def readConfigFile():
-	global google_user
-	global client_id
-	global client_secret
-	global refresh_token
+def readConfigFile(config_files):
 
 	if MODE_DEBUG: print "Loading config file: %s" % config_file
+
 	config = ConfigParser.ConfigParser()
-	config.read(config_file)
+	if config.read(config_files)==[]:
+		print "Error: no config file found!"
+		sys.exit(-1)
 
 	return config
 
@@ -183,7 +185,7 @@ def compose_mail(email_config, host_name, ip):
 args = argsParser()
 last_external_ip = None
 
-config = readConfigFile()
+config = readConfigFile(config_files)
 
 main_config   = config._sections['Main']
 email_config  = config._sections['Email config']
