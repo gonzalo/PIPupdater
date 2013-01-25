@@ -10,6 +10,7 @@ import sys
 import time
 from time import strftime
 import urllib2
+import xmpp
 
 #import oauth2.py
 import oauth2
@@ -17,15 +18,17 @@ import oauth2
 # TODO 
 # - move all config parameters to .conf
 # - check if config read fails
+# - check conditions to resend email or IM
 # - include header (author, web...)
 # - generate a log
 
 # CONFIG BLOCK #
 
 # list of potencial config locations
-config_files = ["PIPupdater.conf",
+# from lower to higher priority
+config_files = ["/etc/PIPupdater/PIPupdater.conf",
 				os.path.expanduser("~/.PIPupdater/PIPupdater.conf"),
-				"/etc/PIPupdater/PIPupdater.conf"]
+				"PIPupdater.conf"]
 
 # regular expression for address
 address_regexp = re.compile('(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)')
@@ -35,6 +38,7 @@ address_regexp = re.compile('(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[
 
 MODE_VERBOSE = False
 MODE_EMAIL   = False
+MODE_IM      = False
 MODE_DEBUG   = False
 
 # FUNCTIONS
@@ -42,6 +46,7 @@ MODE_DEBUG   = False
 def argsParser():
 	global MODE_VERBOSE
 	global MODE_EMAIL
+	global MODE_IM
 	global MODE_DEBUG
 
 	parser = argparse.ArgumentParser(description='Use web services to monitorize your WAN IP')
@@ -53,6 +58,9 @@ def argsParser():
 	parser.add_argument("-m", "--mail", 
 			help="send email when IP is updated (requires smtp email account)",
 			action="store_true")
+	parser.add_argument("-im", "--instant", 
+			help="send IM when IP is updated (requires XMPP account)",
+			action="store_true")
 	parser.add_argument("-d", "--debug", 
 			help="enable debug mode (enables verbose mode also)",
 			action="store_true")
@@ -61,6 +69,7 @@ def argsParser():
 	
 	if args.verbose: MODE_VERBOSE = True
 	if args.mail:    MODE_EMAIL   = True
+	if args.instant: MODE_IM      = True
 	if args.debug:   
 		MODE_DEBUG   = True
 		MODE_VERBOSE = True
@@ -74,11 +83,16 @@ def argsParser():
 
 def readConfigFile(config_files):
 
-	if MODE_DEBUG: print "Loading config file: %s" % config_file
+	if MODE_DEBUG: print "Loading config file(s): %s" % config_files
 
-	config = ConfigParser.ConfigParser()
-	if config.read(config_files)==[]:
-		print "Error: no config file found!"
+	try:
+		config = ConfigParser.ConfigParser()
+		if config.read(config_files)==[]:
+			print "Error: no config file found!"
+			sys.exit(-1)
+
+	except:
+		print "Error parsing config file"
 		sys.exit(-1)
 
 	return config
@@ -179,7 +193,21 @@ def compose_mail(email_config, host_name, ip):
 	mail_text += msg
 	return mail_text
 
+def sendIM(text, xmpp_config):
+	pdb.set_trace()
 
+	try:
+		jid = xmpp.protocol.JID(xmpp_config['username'])
+		client = xmpp.Client(jid.getDomain()) 
+		#client.connect()
+		client.connect(server=(xmpp_config['xmpp_server'],
+							int(xmpp_config['xmpp_port'])))
+		client.auth(jid.getNode(),xmpp_config['password'])	
+		client.send(xmpp.protocol.Message(xmpp_config['receiver'],text))
+		return True
+	except:
+		return False
+	
 ## MAIN ##
 
 args = argsParser()
@@ -187,11 +215,16 @@ last_external_ip = None
 
 config = readConfigFile(config_files)
 
-main_config   = config._sections['Main']
-email_config  = config._sections['Email config']
+try:
+	main_config  = config._sections['Main']
+	email_config = config._sections['Email config']
+	xmpp_config  = config._sections['XMPP config']
 
-time_interval = int(main_config['time_interval'])
-web_service_providers = main_config['web_service_providers'].split(',')
+	time_interval = int(main_config['time_interval'])
+	web_service_providers = main_config['web_service_providers'].split(',')
+except:
+	print "Error parsing config file"
+	sys.exit(-1)
 
 host_name = os.uname()[1]
 ## START LOOP BLOCK ##
@@ -212,7 +245,7 @@ while True:
 		
 			#Display at screen if required
 			if MODE_VERBOSE: 
-				print "%s %s %s: IP updated, performing tasks. Next check on %d seconds" % (
+				print "%s %s %s: IP updated. Next check on %d seconds" % (
 					getDateTime(), 
 					host_name,
 					external_ip,
@@ -238,6 +271,23 @@ while True:
 					#reset last_external_ip to force email during next check
 					last_external_ip = None
 					if MODE_DEBUG: print "ERROR: Email not sent"
+
+			#Send IM if required
+			if MODE_IM:
+
+				message = 'Current IP address for %s is: %s' % (
+							host_name, 
+							external_ip)
+				if MODE_DEBUG: print "Trying to send IM"
+
+				im_sent = sendIM(message, xmpp_config)
+		
+				if im_sent:
+					if MODE_DEBUG: print "IM sent"
+				else:
+					#reset last_external_ip to force IM during next check
+					last_external_ip = None
+					if MODE_DEBUG: print "ERROR: IM not sent"
 					
 
 		#do nothing if IP is updated
