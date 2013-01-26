@@ -194,14 +194,16 @@ def compose_mail(email_config, host_name, ip):
 	return mail_text
 
 def sendIM(text, xmpp_config):
-	pdb.set_trace()
-
 	try:
 		jid = xmpp.protocol.JID(xmpp_config['username'])
-		client = xmpp.Client(jid.getDomain()) 
-		#client.connect()
+
+		if MODE_DEBUG:
+			client = xmpp.Client(jid.getDomain(), debug=['always']) 
+		else: 
+			client = xmpp.Client(jid.getDomain(), debug=[]) 
+
 		client.connect(server=(xmpp_config['xmpp_server'],
-							int(xmpp_config['xmpp_port'])))
+						int(xmpp_config['xmpp_port'])))
 		client.auth(jid.getNode(),xmpp_config['password'])	
 		client.send(xmpp.protocol.Message(xmpp_config['receiver'],text))
 		return True
@@ -275,7 +277,8 @@ while True:
 			#Send IM if required
 			if MODE_IM:
 
-				message = 'Current IP address for %s is: %s' % (
+				message = '%s - Current IP address for %s is: %s' % (
+							getDateTime(),
 							host_name, 
 							external_ip)
 				if MODE_DEBUG: print "Trying to send IM"
