@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 import pdb
 import argparse
+import oauth2
 import ConfigParser
 import datetime
 import os
@@ -9,17 +10,19 @@ import smtplib
 import sys
 import time
 from time import strftime
+import twitter
 import urllib2
 import xmpp
 
-#import oauth2.py
-import oauth2
+
+import googleoauth2
 
 # TODO 
-# - move all config parameters to .conf
+# - integrate googleoauth2
 # - check if config read fails
 # - check conditions to resend email or IM
 # - include header (author, web...)
+# - doc functions
 # - generate a log
 
 # CONFIG BLOCK #
@@ -39,6 +42,7 @@ address_regexp = re.compile('(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[
 MODE_VERBOSE = False
 MODE_EMAIL   = False
 MODE_IM      = False
+MODE_TWITTER = False
 MODE_DEBUG   = False
 
 # FUNCTIONS
@@ -47,6 +51,7 @@ def argsParser():
 	global MODE_VERBOSE
 	global MODE_EMAIL
 	global MODE_IM
+	global MODE_TWITTER
 	global MODE_DEBUG
 
 	parser = argparse.ArgumentParser(description='Use web services to monitorize your WAN IP')
@@ -56,10 +61,13 @@ def argsParser():
 			help="enable verbose mode (enabled if no other output has been selected)",
 			action="store_true")
 	parser.add_argument("-m", "--mail", 
-			help="send email when IP is updated (requires smtp email account)",
+			help="send email when IP is updated (requires configure smtp)",
 			action="store_true")
 	parser.add_argument("-im", "--instant", 
-			help="send IM when IP is updated (requires XMPP account)",
+			help="send IM when IP is updated (requires XMPP or Gtalk account)",
+			action="store_true")
+	parser.add_argument("-t", "--twitter", 
+			help="send DM tweet when IP is updated (requires register app)",
 			action="store_true")
 	parser.add_argument("-d", "--debug", 
 			help="enable debug mode (enables verbose mode also)",
@@ -70,14 +78,15 @@ def argsParser():
 	if args.verbose: MODE_VERBOSE = True
 	if args.mail:    MODE_EMAIL   = True
 	if args.instant: MODE_IM      = True
+	if args.twitter: MODE_TWITTER = True
 	if args.debug:   
+		#MODE_DEBUG also enables MODE_VERBOSE
 		MODE_DEBUG   = True
 		MODE_VERBOSE = True
-		#MODE_DEBUG also enables MODE_VERBOSE
-
+		
 	#TODO find a better way to do this
 	#default mode if no other output has been selected
-	if not (args.verbose or args.mail): MODE_VERBOSE = True
+	if not (args.mail or args.instant or args.twitter): MODE_VERBOSE = True
 
 	return args
 
@@ -145,13 +154,13 @@ def sendMail(mail_text, email_config):
 			server.starttls()
 			server.ehlo()
 			if MODE_DEBUG: print "Requesting access token"
-			access_token = oauth2.RefreshToken(
+			access_token = googleoauth2.RefreshToken(
 				email_config['client_id'], 
 				email_config['client_secret'], 
 				email_config['refresh_token']
 				)['access_token']
 			if MODE_DEBUG: print "Access token = %s" % access_token
-			oauth2_string  = oauth2.GenerateOAuth2String(
+			oauth2_string  = googleoauth2.GenerateOAuth2String(
 				email_config['google_user'],
 				access_token)
 			if MODE_DEBUG: print "OAuth2_string = %s" % oauth2_string
@@ -209,7 +218,26 @@ def sendIM(text, xmpp_config):
 		return True
 	except:
 		return False
-	
+
+def sendTweet(text, twitter_config):
+
+	if twitter_config['send_as_dm']: 
+		text = "d %s %s" % (twitter_config['receiver'], text)
+	try:
+		api = twitter.Api(consumer_key=twitter_config['consumer_key'],
+				consumer_secret=twitter_config['consumer_secret'],
+				access_token_key=twitter_config['access_token'],
+				access_token_secret=twitter_config['access_token_secret'])
+		status = api.PostUpdate(text)
+
+		return True
+	except twitter.TwitterError, e:
+		print e.message
+		return False
+	except:
+		print "Unexpected error:", sys.exc_info()[0]
+		return False
+
 ## MAIN ##
 
 args = argsParser()
@@ -218,9 +246,10 @@ last_external_ip = None
 config = readConfigFile(config_files)
 
 try:
-	main_config  = config._sections['Main']
-	email_config = config._sections['Email config']
-	xmpp_config  = config._sections['XMPP config']
+	main_config    = config._sections['Main']
+	email_config   = config._sections['Email config']
+	xmpp_config    = config._sections['XMPP config']
+	twitter_config = config._sections['Twitter config']
 
 	time_interval = int(main_config['time_interval'])
 	web_service_providers = main_config['web_service_providers'].split(',')
@@ -291,6 +320,24 @@ while True:
 					#reset last_external_ip to force IM during next check
 					last_external_ip = None
 					if MODE_DEBUG: print "ERROR: IM not sent"
+
+			#Send tweet if required
+			if MODE_TWITTER:
+
+				message = '%s - Current IP address for %s is: %s' % (
+							getDateTime(),
+							host_name, 
+							external_ip)
+				if MODE_DEBUG: print "Trying to send tweet"
+
+				im_sent = sendTweet(message, twitter_config)
+		
+				if im_sent:
+					if MODE_DEBUG: print "Tweet sent"
+				else:
+					#reset last_external_ip to force IM during next check
+					last_external_ip = None
+					if MODE_DEBUG: print "ERROR: tweet not sent"
 					
 
 		#do nothing if IP is updated
