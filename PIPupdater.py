@@ -18,12 +18,10 @@ import xmpp
 import googleoauth2
 
 
-# TODO(soon) integrate googleoauth2
+# TODO integrate googleoauth2
 # TODO check if config read fails
 # TODO check conditions to resend email or IM
 # TODO include header (author, web...)
-# TODO doc functions
-# TODO generate a log
 
 # CONFIG BLOCK #
 
@@ -92,7 +90,6 @@ def args_parser():
         MODE_DEBUG   = True
         MODE_VERBOSE = True
         
-    #TODO find a better way to do this
     #default mode if no other output has been selected
     if not (args_parsed.mail or args_parsed.instant \
             or args_parsed.twitter): MODE_VERBOSE = True
@@ -147,12 +144,10 @@ def get_date_time():
 
 def send_mail(mail_text, email_config):
 
-    #TODO test if config fails
     smtp_server = email_config['smtp_server']
     smtp_port   = int(email_config['smtp_port'])
     use_oauth2  = bool(email_config['use_oauth2'])
     
-    #TODO improved connection testings, manage SMTP exceptions
     try:
         if MODE_DEBUG: print "Connecting to smtp server"
 
@@ -176,7 +171,7 @@ def send_mail(mail_text, email_config):
                 access_token)
             if MODE_DEBUG: print "OAuth2_string = %s" % oauth2_string
             server.docmd('AUTH', 'XOAUTH2 ' + oauth2_string)
-        # connect STMP server using standar methods                    
+        # ...connect STMP server using standar methods                    
         else:
             starttls_required = bool(email_config['starttls'])
             if starttls_required: 
@@ -185,10 +180,13 @@ def send_mail(mail_text, email_config):
             server.login(email_config['username'], email_config['password'])
 
         # once indentified send email
-        server.send_mail(email_config['from_address'], 
+        server.sendmail(email_config['from_address'], 
                          email_config['to_address'], 
                          mail_text)
         server.quit()
+    except smtplib.SMTPException, exception:
+        print "SMTP EXCEPTION: %s" % exception
+        return False
     except:
         print "Unexpected error:", sys.exc_info()[0]
         return False
@@ -213,6 +211,7 @@ def compose_mail(email_config, host_name, ip):
     return mail_text
 
 def send_im(text, xmpp_config):
+    #TODO An error occurred while looking up _xmpp-client._tcp.talk.google.com
     try:
         jid = xmpp.protocol.JID(xmpp_config['username'])
 
@@ -364,7 +363,7 @@ def main():
                         external_ip,
                         time_interval)
 
-        #now rest a while
+        #now rest for a while
         try:
             time.sleep(time_interval)
         except KeyboardInterrupt:
